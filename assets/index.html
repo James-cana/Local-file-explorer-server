@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" type="image/x-icon" href="assets/file-server.ico">
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+  <div class="header">
+    <h1>File Explorer</h1>
+    <button id="themeToggle" class="theme-toggle" aria-label="Toggle dark mode">
+      <img src="assets/dark-mode.png" alt="Toggle theme" class="theme-icon" id="themeIcon">
+    </button>
+  </div>
+  
+  <div class="functional-bar">
+    <div class="search-container">
+      <input type="text" id="searchInput" placeholder="Search files" class="search-input">
+      <button id="searchClearBtn" class="search-clear-btn" aria-label="Clear search" style="display: none;">×</button>
+    </div>
+    
+    <div class="sort-container">
+      <button id="sortBtn" class="sort-btn">
+        Sort
+        <img src="assets/drop-down.png" alt="dropdown" class="sort-icon" id="sortIcon">
+      </button>
+      <div id="sortDropdown" class="sort-dropdown">
+        <div class="sort-option" data-sort="name">
+          <span class="sort-option-label">Name</span>
+        </div>
+        <div class="sort-option" data-sort="size">
+          <span class="sort-option-label">Size</span>
+        </div>
+        <div class="sort-option" data-sort="type">
+          <span class="sort-option-label">Type</span>
+        </div>
+      </div>
+    </div>
+    
+    <button id="uploadBtn" class="upload-btn">
+      <img src="assets/upload.png" alt="upload" class="upload-icon">
+      Upload
+    </button>
+    
+    <button id="selectDownloadBtn" class="select-download-btn">Select Download</button>
+    
+    <input type="file" id="fileInput" multiple style="display: none;" />
+  </div>
+  
+  <div class="file-list-container">
+    <div id="fileList" class="loading">Loading files...</div>
+  </div>
+  
+  <div id="uploadStatus" class="upload-status"></div>
+
+  <!-- Upload Modal -->
+  <div id="uploadModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title">Upload Files</h2>
+        <button class="modal-close-btn" id="modalCloseBtn" aria-label="Close modal">×</button>
+      </div>
+      
+      <div class="modal-body">
+        <button id="chooseFileBtn" class="choose-file-btn">
+          <img src="assets/upload.png" alt="upload" class="upload-icon-svg">
+          Choose Files
+        </button>
+        
+        <div class="file-list-section">
+          <div class="file-list-header">
+            <label class="file-list-label">Files to upload</label>
+            <span class="file-count" id="fileCount">0 files</span>
+          </div>
+          <div class="file-list-container-upload">
+            <ol id="fileListToUpload" class="file-list-to-upload">
+              <li class="empty-state">No files selected</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+      
+      <div class="modal-footer">
+        <button id="modalCancelBtn" class="modal-cancel-btn">Cancel</button>
+        <button id="modalUploadBtn" class="modal-upload-btn" disabled>Upload</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Image Preview Modal -->
+  <div id="imagePreviewModal" class="image-preview-modal">
+    <div class="image-preview-content">
+      <button class="image-preview-close" id="imagePreviewClose" aria-label="Close preview">×</button>
+      <img id="imagePreviewImg" src="" alt="Image preview" class="image-preview-img">
+      <div class="image-preview-info">
+        <div class="image-preview-name-container">
+          <span id="imagePreviewName" class="image-preview-name"></span>
+          <span id="imagePreviewSize" class="image-preview-size"></span>
+        </div>
+        <a id="imagePreviewDownload" href="" class="image-preview-download-btn" download>Download</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="assets/script.js"></script>
+</body>
+</html>
