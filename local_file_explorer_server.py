@@ -38,9 +38,9 @@ def get_folder_size(folder_path):
     """
     total_size = 0
     try:
-        for dirpath, dirnames, filenames in os.walk(folder_path):
-            # Filter out hidden directories and 'uploads' folder
-            dirnames[:] = [d for d in dirnames if not is_hidden(os.path.join(dirpath, d)) and d != 'uploads']
+            for dirpath, dirnames, filenames in os.walk(folder_path):
+                # Filter out hidden directories and 'uploads' folder
+                dirnames[:] = [d for d in dirnames if not is_hidden(os.path.join(dirpath, d)) and d != 'uploads' and d != 'assets']
             
             for filename in filenames:
                 filepath = os.path.join(dirpath, filename)
@@ -57,6 +57,15 @@ def get_folder_size(folder_path):
     return total_size
 
 class UploadHandler(SimpleHTTPRequestHandler):
+    def do_OPTIONS(self):
+        # Handle CORS preflight requests for range requests
+        self.send_response(200)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Range, Content-Type')
+        self.send_header('Access-Control-Max-Age', '86400')
+        self.end_headers()
+    
     def do_GET(self):
         # Route GET requests: file listing API, file downloads, index page, or static assets
         parsed_path = urllib.parse.urlparse(self.path)
@@ -94,36 +103,166 @@ class UploadHandler(SimpleHTTPRequestHandler):
             return
         
         try:
-            with open(filepath, 'rb') as f:
-                content = f.read()
-            self.send_response(200)
-            content_type = 'application/octet-stream'
-            if filepath.endswith('.html'):
-                content_type = 'text/html; charset=utf-8'
-            elif filepath.endswith('.css'):
-                content_type = 'text/css; charset=utf-8'
-            elif filepath.endswith('.js'):
-                content_type = 'application/javascript; charset=utf-8'
-            elif filepath.endswith('.json'):
-                content_type = 'application/json; charset=utf-8'
-            elif filepath.endswith('.png'):
-                content_type = 'image/png'
-            elif filepath.endswith('.jpg') or filepath.endswith('.jpeg'):
-                content_type = 'image/jpeg'
-            elif filepath.endswith('.gif'):
-                content_type = 'image/gif'
-            elif filepath.endswith('.ico'):
-                content_type = 'image/x-icon'
-            elif filepath.endswith('.flac'):
-                content_type = 'audio/flac'
-            elif filepath.endswith('.svg'):
-                content_type = 'image/svg+xml'
+            # Get file size for range requests
+            file_size = os.path.getsize(filepath)
             
+            # Determine content type based on file extension
+            content_type = 'application/octet-stream'
+            ext = os.path.splitext(filepath)[1].lower()
+            
+            # Text and web files
+            if ext == '.html' or ext == '.htm':
+                content_type = 'text/html; charset=utf-8'
+            elif ext == '.css':
+                content_type = 'text/css; charset=utf-8'
+            elif ext == '.js':
+                content_type = 'application/javascript; charset=utf-8'
+            elif ext == '.json':
+                content_type = 'application/json; charset=utf-8'
+            elif ext == '.txt':
+                content_type = 'text/plain; charset=utf-8'
+            elif ext == '.md':
+                content_type = 'text/markdown; charset=utf-8'
+            elif ext == '.xml':
+                content_type = 'application/xml; charset=utf-8'
+            elif ext == '.csv':
+                content_type = 'text/csv; charset=utf-8'
+            # Document files
+            elif ext == '.pdf':
+                content_type = 'application/pdf'
+            elif ext == '.doc':
+                content_type = 'application/msword'
+            elif ext == '.docx':
+                content_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            elif ext == '.xls':
+                content_type = 'application/vnd.ms-excel'
+            elif ext == '.xlsx':
+                content_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            elif ext == '.ppt':
+                content_type = 'application/vnd.ms-powerpoint'
+            elif ext == '.pptx':
+                content_type = 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+            elif ext == '.rtf':
+                content_type = 'application/rtf'
+            elif ext == '.odt':
+                content_type = 'application/vnd.oasis.opendocument.text'
+            elif ext == '.ods':
+                content_type = 'application/vnd.oasis.opendocument.spreadsheet'
+            elif ext == '.odp':
+                content_type = 'application/vnd.oasis.opendocument.presentation'
+            # Images
+            elif ext == '.png':
+                content_type = 'image/png'
+            elif ext in ['.jpg', '.jpeg']:
+                content_type = 'image/jpeg'
+            elif ext == '.gif':
+                content_type = 'image/gif'
+            elif ext == '.ico':
+                content_type = 'image/x-icon'
+            elif ext == '.svg':
+                content_type = 'image/svg+xml'
+            elif ext in ['.bmp', '.webp', '.tiff', '.tif']:
+                content_type = f'image/{ext[1:]}'
+            # Audio files
+            elif ext == '.mp3':
+                content_type = 'audio/mpeg'
+            elif ext == '.wav':
+                content_type = 'audio/wav'
+            elif ext == '.flac':
+                content_type = 'audio/flac'
+            elif ext == '.ogg':
+                content_type = 'audio/ogg'
+            elif ext == '.aac':
+                content_type = 'audio/aac'
+            elif ext == '.m4a':
+                content_type = 'audio/mp4'
+            elif ext == '.wma':
+                content_type = 'audio/x-ms-wma'
+            # Video files
+            elif ext == '.mp4':
+                content_type = 'video/mp4'
+            elif ext == '.webm':
+                content_type = 'video/webm'
+            elif ext == '.ogg':
+                content_type = 'video/ogg'
+            elif ext == '.avi':
+                content_type = 'video/x-msvideo'
+            elif ext == '.mkv':
+                content_type = 'video/x-matroska'
+            elif ext == '.mov':
+                content_type = 'video/quicktime'
+            elif ext == '.wmv':
+                content_type = 'video/x-ms-wmv'
+            elif ext == '.flv':
+                content_type = 'video/x-flv'
+            elif ext == '.m4v':
+                content_type = 'video/mp4'
+            elif ext == '.3gp':
+                content_type = 'video/3gpp'
+            
+            # Handle range requests for media files (streaming support)
+            range_header = self.headers.get('Range')
+            if range_header and (content_type.startswith('audio/') or content_type.startswith('video/')):
+                # Parse range header
+                range_match = re.match(r'bytes=(\d+)-(\d*)', range_header)
+                if range_match:
+                    start = int(range_match.group(1))
+                    end = int(range_match.group(2)) if range_match.group(2) else file_size - 1
+                    
+                    if start >= file_size or end >= file_size or start > end:
+                        self.send_error(416, "Range Not Satisfiable")
+                        return
+                    
+                    # Send 206 Partial Content
+                    self.send_response(206)
+                    self.send_header('Content-type', content_type)
+                    self.send_header('Accept-Ranges', 'bytes')
+                    self.send_header('Content-Length', str(end - start + 1))
+                    self.send_header('Content-Range', f'bytes {start}-{end}/{file_size}')
+                    self.end_headers()
+                    
+                    # Stream the requested range
+                    with open(filepath, 'rb') as f:
+                        f.seek(start)
+                        remaining = end - start + 1
+                        while remaining > 0:
+                            chunk_size = min(8192, remaining)
+                            chunk = f.read(chunk_size)
+                            if not chunk:
+                                break
+                            self.wfile.write(chunk)
+                            remaining -= len(chunk)
+                    return
+            
+            # Regular file serving (no range request)
+            self.send_response(200)
             self.send_header('Content-type', content_type)
+            self.send_header('Accept-Ranges', 'bytes')
+            self.send_header('Content-Length', str(file_size))
             self.end_headers()
-            self.wfile.write(content)
+            
+            # For small files, read all at once; for large files, stream
+            if file_size < 10 * 1024 * 1024:  # Less than 10MB
+                with open(filepath, 'rb') as f:
+                    self.wfile.write(f.read())
+            else:
+                # Stream large files in chunks
+                with open(filepath, 'rb') as f:
+                    while True:
+                        chunk = f.read(8192)
+                        if not chunk:
+                            break
+                        self.wfile.write(chunk)
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+            # Client disconnected during file transfer - this is normal, just ignore
+            pass
         except Exception as e:
-            self.send_error(500, f"Error: {str(e)}")
+            # Only send error if connection is still open
+            try:
+                self.send_error(500, f"Error: {str(e)}")
+            except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+                # Connection closed while trying to send error - ignore
+                pass
     
     def send_file_list(self):
         # API endpoint: Returns file/folder listing as JSON
@@ -174,7 +313,7 @@ class UploadHandler(SimpleHTTPRequestHandler):
                     for item in os.listdir(folder_path):
                         item_path = os.path.join(folder_path, item)
                         
-                        if is_hidden(item_path) or item == 'uploads':
+                        if is_hidden(item_path) or item == 'uploads' or item == 'assets':
                             continue
                         
                         rel_path = os.path.relpath(item_path, '.').replace('\\', '/')
@@ -227,7 +366,7 @@ class UploadHandler(SimpleHTTPRequestHandler):
                 filtered_dirs = []
                 for d in dirs:
                     dir_path = os.path.join(root, d)
-                    if not is_hidden(dir_path) and d != 'uploads':
+                    if not is_hidden(dir_path) and d != 'uploads' and d != 'assets':
                         filtered_dirs.append(d)
                 dirs[:] = filtered_dirs
                 
@@ -302,7 +441,7 @@ class UploadHandler(SimpleHTTPRequestHandler):
                     # Walk through the folder and add all files
                     for root, dirs, files in os.walk(filepath):
                         # Filter out hidden directories and 'uploads' folder
-                        dirs[:] = [d for d in dirs if not is_hidden(os.path.join(root, d)) and d != 'uploads']
+                        dirs[:] = [d for d in dirs if not is_hidden(os.path.join(root, d)) and d != 'uploads' and d != 'assets']
                         
                         for file in files:
                             file_path = os.path.join(root, file)
@@ -326,19 +465,172 @@ class UploadHandler(SimpleHTTPRequestHandler):
                 self.end_headers()
                 self.wfile.write(content)
             else:
-                # It's a file, send it directly
-                with open(filepath, 'rb') as f:
-                    content = f.read()
+                # It's a file, send it directly with proper MIME type
+                file_size = os.path.getsize(filepath)
+                filename = os.path.basename(filepath)
+                
+                # Determine content type
+                content_type = 'application/octet-stream'
+                ext = os.path.splitext(filepath)[1].lower()
+                
+                # Text and web files
+                if ext == '.html' or ext == '.htm':
+                    content_type = 'text/html; charset=utf-8'
+                elif ext == '.txt':
+                    content_type = 'text/plain; charset=utf-8'
+                elif ext == '.md':
+                    content_type = 'text/markdown; charset=utf-8'
+                elif ext == '.xml':
+                    content_type = 'application/xml; charset=utf-8'
+                elif ext == '.csv':
+                    content_type = 'text/csv; charset=utf-8'
+                # Document files
+                elif ext == '.pdf':
+                    content_type = 'application/pdf'
+                elif ext == '.doc':
+                    content_type = 'application/msword'
+                elif ext == '.docx':
+                    content_type = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                elif ext == '.xls':
+                    content_type = 'application/vnd.ms-excel'
+                elif ext == '.xlsx':
+                    content_type = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                elif ext == '.ppt':
+                    content_type = 'application/vnd.ms-powerpoint'
+                elif ext == '.pptx':
+                    content_type = 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+                elif ext == '.rtf':
+                    content_type = 'application/rtf'
+                elif ext == '.odt':
+                    content_type = 'application/vnd.oasis.opendocument.text'
+                elif ext == '.ods':
+                    content_type = 'application/vnd.oasis.opendocument.spreadsheet'
+                elif ext == '.odp':
+                    content_type = 'application/vnd.oasis.opendocument.presentation'
+                # Audio files
+                elif ext == '.mp3':
+                    content_type = 'audio/mpeg'
+                elif ext == '.wav':
+                    content_type = 'audio/wav'
+                elif ext == '.flac':
+                    content_type = 'audio/flac'
+                elif ext == '.ogg':
+                    content_type = 'audio/ogg'
+                elif ext == '.aac':
+                    content_type = 'audio/aac'
+                elif ext == '.m4a':
+                    content_type = 'audio/mp4'
+                elif ext == '.wma':
+                    content_type = 'audio/x-ms-wma'
+                # Video files
+                elif ext == '.mp4':
+                    content_type = 'video/mp4'
+                elif ext == '.webm':
+                    content_type = 'video/webm'
+                elif ext == '.avi':
+                    content_type = 'video/x-msvideo'
+                elif ext == '.mkv':
+                    content_type = 'video/x-matroska'
+                elif ext == '.mov':
+                    content_type = 'video/quicktime'
+                elif ext == '.wmv':
+                    content_type = 'video/x-ms-wmv'
+                elif ext == '.flv':
+                    content_type = 'video/x-flv'
+                elif ext == '.m4v':
+                    content_type = 'video/mp4'
+                elif ext == '.3gp':
+                    content_type = 'video/3gpp'
+                # Images
+                elif ext == '.png':
+                    content_type = 'image/png'
+                elif ext in ['.jpg', '.jpeg']:
+                    content_type = 'image/jpeg'
+                elif ext == '.gif':
+                    content_type = 'image/gif'
+                elif ext == '.webp':
+                    content_type = 'image/webp'
+                
+                # Handle range requests for media streaming and PDFs (required for seeking/efficient loading)
+                range_header = self.headers.get('Range')
+                if range_header and (content_type.startswith('audio/') or content_type.startswith('video/') or content_type == 'application/pdf'):
+                    range_match = re.match(r'bytes=(\d+)-(\d*)', range_header)
+                    if range_match:
+                        start = int(range_match.group(1))
+                        end = int(range_match.group(2)) if range_match.group(2) else file_size - 1
+                        
+                        # Validate range: start must be < file_size, end must be < file_size, and start <= end
+                        if start >= 0 and end < file_size and start <= end:
+                            self.send_response(206)
+                            self.send_header('Content-type', content_type)
+                            self.send_header('Accept-Ranges', 'bytes')
+                            self.send_header('Content-Length', str(end - start + 1))
+                            self.send_header('Content-Range', f'bytes {start}-{end}/{file_size}')
+                            # Always use 'inline' for PDFs to display in browser
+                            if content_type == 'application/pdf':
+                                self.send_header('Content-Disposition', f'inline; filename="{filename}"')
+                            else:
+                                self.send_header('Content-Disposition', f'inline; filename="{filename}"')
+                            self.send_header('Cache-Control', 'no-cache')
+                            self.send_header('Access-Control-Allow-Origin', '*')
+                            self.send_header('Access-Control-Allow-Headers', 'Range')
+                            self.end_headers()
+                            
+                            with open(filepath, 'rb') as f:
+                                f.seek(start)
+                                remaining = end - start + 1
+                                while remaining > 0:
+                                    chunk_size = min(8192, remaining)
+                                    chunk = f.read(chunk_size)
+                                    if not chunk:
+                                        break
+                                    self.wfile.write(chunk)
+                                    remaining -= len(chunk)
+                            return
+                
+                # Regular file serving (no range request or not media/PDF file)
+                # Use 'inline' for media files, PDFs, HTML, and text files to allow preview/playback, 'attachment' for others to force download
+                isPreviewable = (content_type.startswith('audio/') or 
+                               content_type.startswith('video/') or 
+                               content_type.startswith('image/') or
+                               content_type == 'application/pdf' or
+                               content_type.startswith('text/') or
+                               content_type.startswith('application/xml') or
+                               content_type.startswith('application/json'))
+                # Always use 'inline' for PDFs to ensure they display in browser, not download
+                if content_type == 'application/pdf':
+                    disposition = 'inline'
+                else:
+                    disposition = 'inline' if isPreviewable else 'attachment'
                 
                 self.send_response(200)
-                filename = os.path.basename(filepath)
-                self.send_header('Content-type', 'application/octet-stream')
-                self.send_header('Content-Disposition', f'attachment; filename="{filename}"')
-                self.send_header('Content-Length', str(len(content)))
+                self.send_header('Content-type', content_type)
+                self.send_header('Content-Disposition', f'{disposition}; filename="{filename}"')
+                self.send_header('Content-Length', str(file_size))
+                self.send_header('Accept-Ranges', 'bytes')
+                self.send_header('Access-Control-Allow-Origin', '*')
+                self.send_header('Access-Control-Allow-Headers', 'Range')
+                # Add X-Content-Type-Options to prevent MIME sniffing that might cause downloads
+                self.send_header('X-Content-Type-Options', 'nosniff')
                 self.end_headers()
-                self.wfile.write(content)
+                
+                # Stream file in chunks
+                with open(filepath, 'rb') as f:
+                    while True:
+                        chunk = f.read(8192)
+                        if not chunk:
+                            break
+                        self.wfile.write(chunk)
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+            # Client disconnected during file transfer - this is normal, just ignore
+            pass
         except Exception as e:
-            self.send_error(500, f"Error: {str(e)}")
+            # Only send error if connection is still open
+            try:
+                self.send_error(500, f"Error: {str(e)}")
+            except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+                # Connection closed while trying to send error - ignore
+                pass
     def do_POST(self):
         # Handle file uploads: Parse multipart/form-data, extract files, and save to uploads directory
         try:

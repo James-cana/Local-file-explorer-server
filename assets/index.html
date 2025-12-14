@@ -103,6 +103,52 @@
     </div>
   </div>
 
+  <!-- Media Player Modal -->
+  <div id="mediaPlayerModal" class="media-player-modal">
+    <div class="media-player-content">
+      <button class="media-player-close" id="mediaPlayerClose" aria-label="Close player">×</button>
+      <div class="media-player-container">
+        <video id="mediaPlayerVideo" class="media-player-element" controls preload="metadata" controlsList="nodownload" style="display: none;">
+          <source id="mediaPlayerVideoSource" src="" type="">
+          Your browser does not support the video tag.
+        </video>
+        <audio id="mediaPlayerAudio" class="media-player-element" controls preload="metadata" controlsList="nodownload" style="display: none;">
+          <source id="mediaPlayerAudioSource" src="" type="">
+          Your browser does not support the audio tag.
+        </audio>
+      </div>
+      <div class="media-player-info">
+        <div class="media-player-name-container">
+          <span id="mediaPlayerName" class="media-player-name"></span>
+          <span id="mediaPlayerSize" class="media-player-size"></span>
+        </div>
+        <a id="mediaPlayerDownload" href="" class="media-player-download-btn" download>Download</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Document Preview Modal -->
+  <div id="documentPreviewModal" class="document-preview-modal">
+    <div class="document-preview-content">
+      <div class="document-preview-header">
+        <div class="document-preview-title-container">
+          <span id="documentPreviewName" class="document-preview-name"></span>
+          <span id="documentPreviewSize" class="document-preview-size"></span>
+        </div>
+        <div class="document-preview-actions">
+          <a id="documentPreviewDownload" href="" class="document-preview-download-btn" download>Download</a>
+          <button class="document-preview-close" id="documentPreviewClose" aria-label="Close preview">×</button>
+        </div>
+      </div>
+      <div class="document-preview-body">
+        <div id="documentPreviewLoading" class="document-preview-loading">Loading preview...</div>
+        <iframe id="documentPreviewIframe" class="document-preview-iframe" style="display: none;" sandbox="allow-same-origin allow-scripts"></iframe>
+        <pre id="documentPreviewText" class="document-preview-text" style="display: none;"></pre>
+        <div id="documentPreviewError" class="document-preview-error" style="display: none;"></div>
+      </div>
+    </div>
+  </div>
+
   <script src="assets/script.js"></script>
 </body>
 </html>

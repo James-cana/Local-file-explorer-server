@@ -110,6 +110,76 @@ function isImageFile(filename) {
   return imageExtensions.includes(ext);
 }
 
+function isAudioFile(filename) {
+  const audioExtensions = ['mp3', 'wav', 'flac', 'ogg', 'aac', 'm4a', 'wma', 'opus', 'mpa', 'wav', 'flac'];
+  const ext = getFileType(filename);
+  return audioExtensions.includes(ext);
+}
+
+function isVideoFile(filename) {
+  const videoExtensions = ['mp4', 'webm', 'ogg', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'm4v', '3gp', 'mpg', 'mpeg', 'm2v'];
+  const ext = getFileType(filename);
+  return videoExtensions.includes(ext);
+}
+
+function isMediaFile(filename) {
+  return isAudioFile(filename) || isVideoFile(filename);
+}
+
+function isTextFile(filename) {
+  const textExtensions = ['txt', 'md', 'log', 'json', 'xml', 'csv', 'yml', 'yaml', 'ini', 'cfg', 'conf', 'config', 'env', 'sh', 'bat', 'ps1', 'py', 'js', 'html', 'htm', 'css', 'java', 'cpp', 'c', 'h', 'hpp', 'php', 'rb', 'go', 'rs', 'swift', 'kt', 'ts', 'tsx', 'jsx', 'vue', 'svelte'];
+  const ext = getFileType(filename);
+  return textExtensions.includes(ext);
+}
+
+function isPdfFile(filename) {
+  const ext = getFileType(filename);
+  return ext === 'pdf';
+}
+
+function isHtmlFile(filename) {
+  const ext = getFileType(filename);
+  return ext === 'html' || ext === 'htm';
+}
+
+function isDocumentFile(filename) {
+  const documentExtensions = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp', 'rtf'];
+  const ext = getFileType(filename);
+  return documentExtensions.includes(ext);
+}
+
+function isPreviewableFile(filename) {
+  return isTextFile(filename) || isHtmlFile(filename) || isDocumentFile(filename);
+}
+
+function getMediaMimeType(filename) {
+  const ext = getFileType(filename);
+  const mimeTypes = {
+    // Audio
+    'mp3': 'audio/mpeg',
+    'wav': 'audio/wav',
+    'flac': 'audio/flac',
+    'ogg': 'audio/ogg',
+    'aac': 'audio/aac',
+    'm4a': 'audio/mp4',
+    'wma': 'audio/x-ms-wma',
+    'opus': 'audio/opus',
+    // Video
+    'mp4': 'video/mp4',
+    'webm': 'video/webm',
+    'avi': 'video/x-msvideo',
+    'mkv': 'video/x-matroska',
+    'mov': 'video/quicktime',
+    'wmv': 'video/x-ms-wmv',
+    'flv': 'video/x-flv',
+    'm4v': 'video/mp4',
+    '3gp': 'video/3gpp',
+    'mpg': 'video/mpeg',
+    'mpeg': 'video/mpeg'
+  };
+  return mimeTypes[ext] || 'application/octet-stream';
+}
+
 function showImagePreview(filePath, fileName, fileSize) {
   const modal = document.getElementById('imagePreviewModal');
   const img = document.getElementById('imagePreviewImg');
@@ -154,6 +224,257 @@ function hideImagePreview() {
   img.src = '';
 }
 
+function showMediaPlayer(filePath, fileName, fileSize) {
+  const modal = document.getElementById('mediaPlayerModal');
+  const videoElement = document.getElementById('mediaPlayerVideo');
+  const audioElement = document.getElementById('mediaPlayerAudio');
+  const nameSpan = document.getElementById('mediaPlayerName');
+  const sizeSpan = document.getElementById('mediaPlayerSize');
+  const downloadLink = document.getElementById('mediaPlayerDownload');
+  
+  // Ensure modal is closed first (in case it was left open)
+  if (modal.classList.contains('show')) {
+    modal.classList.remove('show');
+    document.body.style.overflow = '';
+  }
+  
+  // Set media source URL
+  const mediaUrl = `/download/${encodeURIComponent(filePath)}`;
+  const mimeType = getMediaMimeType(fileName);
+  
+  // Fully reset both players first to ensure clean state
+  // Reset video element
+  try {
+    videoElement.pause();
+    videoElement.currentTime = 0;
+    videoElement.src = '';
+    videoElement.removeAttribute('src'); // Ensure src attribute is removed
+    while (videoElement.firstChild) {
+      videoElement.removeChild(videoElement.firstChild);
+    }
+    videoElement.load();
+    videoElement.style.display = 'none';
+  } catch (e) {
+    console.warn('Error resetting video element:', e);
+  }
+  
+  // Reset audio element
+  try {
+    audioElement.pause();
+    audioElement.currentTime = 0;
+    audioElement.src = '';
+    audioElement.removeAttribute('src'); // Ensure src attribute is removed
+    while (audioElement.firstChild) {
+      audioElement.removeChild(audioElement.firstChild);
+    }
+    audioElement.load();
+    audioElement.style.display = 'none';
+  } catch (e) {
+    console.warn('Error resetting audio element:', e);
+  }
+  
+  // Determine if it's audio or video
+  if (isVideoFile(fileName)) {
+    // Setup video player with proper attributes for seeking
+    // Clear existing sources first (already done above, but ensure it's clean)
+    while (videoElement.firstChild) {
+      videoElement.removeChild(videoElement.firstChild);
+    }
+    
+    // Set video source directly for better seeking support
+    videoElement.src = mediaUrl;
+    
+    // Also add source element as fallback
+    const source = document.createElement('source');
+    source.src = mediaUrl;
+    source.type = mimeType;
+    videoElement.appendChild(source);
+    
+    // Ensure proper attributes for seeking
+    videoElement.setAttribute('controls', '');
+    videoElement.setAttribute('preload', 'metadata');
+    videoElement.setAttribute('autoplay', '');
+    videoElement.setAttribute('controlsList', 'nodownload');
+    videoElement.removeAttribute('loop');
+    
+    // Load the new source
+    videoElement.load();
+    videoElement.style.display = 'block';
+    
+  } else if (isAudioFile(fileName)) {
+    // Setup audio player with proper attributes for seeking
+    // Clear existing sources first (already done above, but ensure it's clean)
+    while (audioElement.firstChild) {
+      audioElement.removeChild(audioElement.firstChild);
+    }
+    
+    // Set audio source directly for better seeking support
+    audioElement.src = mediaUrl;
+    
+    // Also add source element as fallback
+    const source = document.createElement('source');
+    source.src = mediaUrl;
+    source.type = mimeType;
+    audioElement.appendChild(source);
+    
+    // Ensure proper attributes for seeking
+    audioElement.setAttribute('controls', '');
+    audioElement.setAttribute('preload', 'metadata');
+    audioElement.setAttribute('autoplay', '');
+    audioElement.setAttribute('controlsList', 'nodownload');
+    audioElement.removeAttribute('loop');
+    
+    // Load the new source
+    audioElement.load();
+    audioElement.style.display = 'block';
+  }
+  
+  // Set file name
+  nameSpan.textContent = fileName;
+  
+  // Set file size
+  if (fileSize !== undefined && fileSize !== null) {
+    sizeSpan.textContent = formatSize(fileSize);
+  } else {
+    sizeSpan.textContent = '';
+  }
+  
+  // Set download link
+  downloadLink.href = mediaUrl;
+  downloadLink.download = fileName;
+  
+  // Show modal
+  modal.classList.add('show');
+  
+  // Prevent body scroll when modal is open
+  document.body.style.overflow = 'hidden';
+}
+
+function hideMediaPlayer() {
+  const modal = document.getElementById('mediaPlayerModal');
+  const videoElement = document.getElementById('mediaPlayerVideo');
+  const audioElement = document.getElementById('mediaPlayerAudio');
+  
+  // Pause and fully reset video element
+  videoElement.pause();
+  videoElement.currentTime = 0;
+  videoElement.src = '';
+  // Remove all source elements
+  while (videoElement.firstChild) {
+    videoElement.removeChild(videoElement.firstChild);
+  }
+  videoElement.style.display = 'none';
+  // Reset the element by calling load() to clear any internal state
+  videoElement.load();
+  
+  // Pause and fully reset audio element
+  audioElement.pause();
+  audioElement.currentTime = 0;
+  audioElement.src = '';
+  // Remove all source elements
+  while (audioElement.firstChild) {
+    audioElement.removeChild(audioElement.firstChild);
+  }
+  audioElement.style.display = 'none';
+  // Reset the element by calling load() to clear any internal state
+  audioElement.load();
+  
+  modal.classList.remove('show');
+  
+  // Restore body scroll
+  document.body.style.overflow = '';
+}
+
+function showDocumentPreview(filePath, fileName, fileSize) {
+  const modal = document.getElementById('documentPreviewModal');
+  const nameSpan = document.getElementById('documentPreviewName');
+  const sizeSpan = document.getElementById('documentPreviewSize');
+  const downloadLink = document.getElementById('documentPreviewDownload');
+  const iframe = document.getElementById('documentPreviewIframe');
+  const textPreview = document.getElementById('documentPreviewText');
+  const errorDiv = document.getElementById('documentPreviewError');
+  const loadingDiv = document.getElementById('documentPreviewLoading');
+  
+  // Set file name and size
+  nameSpan.textContent = fileName;
+  if (fileSize !== undefined && fileSize !== null) {
+    sizeSpan.textContent = formatSize(fileSize);
+  } else {
+    sizeSpan.textContent = '';
+  }
+  
+  // Set download link
+  const fileUrl = `/download/${encodeURIComponent(filePath)}`;
+  downloadLink.href = fileUrl;
+  downloadLink.download = fileName;
+  
+  // Hide all preview elements initially
+  iframe.style.display = 'none';
+  textPreview.style.display = 'none';
+  errorDiv.style.display = 'none';
+  loadingDiv.style.display = 'block';
+  
+  // Show modal
+  modal.classList.add('show');
+  document.body.style.overflow = 'hidden';
+  
+  // Determine file type and load accordingly
+  const ext = getFileType(fileName).toLowerCase();
+  
+  // HTML files and text files - fetch and display as plain text (source code)
+  if (isHtmlFile(fileName) || isTextFile(fileName)) {
+    // Text files and HTML files - fetch and display as plain text
+    fetch(fileUrl)
+      .then(response => {
+        if (!response.ok) {
+          throw new Error('Failed to load file');
+        }
+        return response.text();
+      })
+      .then(text => {
+        loadingDiv.style.display = 'none';
+        textPreview.textContent = text;
+        textPreview.style.display = 'block';
+      })
+      .catch(error => {
+        loadingDiv.style.display = 'none';
+        errorDiv.style.display = 'block';
+        errorDiv.textContent = `Unable to preview file: ${error.message}. Please download the file to view it.`;
+      });
+      
+  } else if (isDocumentFile(fileName)) {
+    // DOC/DOCX and other Office documents - show message
+    loadingDiv.style.display = 'none';
+    errorDiv.style.display = 'block';
+    errorDiv.innerHTML = `
+      <p>This file type (${ext.toUpperCase()}) cannot be previewed in the browser.</p>
+      <p>Please download the file to view it with a compatible application.</p>
+    `;
+  } else {
+    // Unknown document type
+    loadingDiv.style.display = 'none';
+    errorDiv.style.display = 'block';
+    errorDiv.textContent = 'Preview not available for this file type. Please download the file to view it.';
+  }
+}
+
+function hideDocumentPreview() {
+  const modal = document.getElementById('documentPreviewModal');
+  const iframe = document.getElementById('documentPreviewIframe');
+  const textPreview = document.getElementById('documentPreviewText');
+  
+  // Clear iframe source
+  iframe.src = '';
+  
+  // Clear text preview
+  textPreview.textContent = '';
+  
+  modal.classList.remove('show');
+  
+  // Restore body scroll
+  document.body.style.overflow = '';
+}
+
 function handleFileClick(event) {
   // Don't handle if clicking on download button
   if (event.target.classList.contains('download-btn') || event.target.closest('.download-btn')) {
@@ -189,10 +510,26 @@ function handleFileClick(event) {
     }
   }
   
+  if (!fileName) return;
+  
+  const fileSize = file ? file.size : null;
+  
+  // Check if file is a media file (audio or video)
+  if (isMediaFile(fileName)) {
+    showMediaPlayer(filePath, fileName, fileSize);
+  }
   // Check if file is an image
-  if (fileName && isImageFile(fileName)) {
-    const fileSize = file ? file.size : null;
+  else if (isImageFile(fileName)) {
     showImagePreview(filePath, fileName, fileSize);
+  }
+  // Check if file is a PDF - open in new tab
+  else if (isPdfFile(fileName)) {
+    const fileUrl = `/download/${encodeURIComponent(filePath)}`;
+    window.open(fileUrl, '_blank');
+  }
+  // Check if file is a previewable document (excluding PDF)
+  else if (isPreviewableFile(fileName) && !isPdfFile(fileName)) {
+    showDocumentPreview(filePath, fileName, fileSize);
   }
 }
 
@@ -886,10 +1223,14 @@ function navigateToFolder(folderPath) {
     const actualPath = folderPath.replace(/\\'/g, "'").replace(/&quot;/g, '"');
     currentFolder = actualPath;
     folderStack.push(actualPath);
+    // Save current folder to localStorage
+    localStorage.setItem('currentFolder', actualPath);
   } else {
     // Navigate to root
     currentFolder = null;
     folderStack = [];
+    // Clear saved folder from localStorage
+    localStorage.removeItem('currentFolder');
   }
   
   // Clear search when navigating
@@ -1320,6 +1661,68 @@ function initializeApp() {
         if (e.key === 'Escape' && imagePreviewModal.classList.contains('show')) {
           hideImagePreview();
         }
+      });
+    }
+    
+    // Media player modal close handlers
+    const mediaPlayerModal = document.getElementById('mediaPlayerModal');
+    const mediaPlayerClose = document.getElementById('mediaPlayerClose');
+    
+    if (mediaPlayerClose) {
+      mediaPlayerClose.addEventListener('click', hideMediaPlayer);
+    }
+    
+    if (mediaPlayerModal) {
+      // Close modal when clicking outside the player
+      mediaPlayerModal.addEventListener('click', function(e) {
+        if (e.target === mediaPlayerModal) {
+          hideMediaPlayer();
+        }
+      });
+      
+      // Close modal on Escape key
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && mediaPlayerModal.classList.contains('show')) {
+          hideMediaPlayer();
+        }
+      });
+    }
+    
+    // Document preview modal close handlers
+    const documentPreviewModal = document.getElementById('documentPreviewModal');
+    const documentPreviewClose = document.getElementById('documentPreviewClose');
+    
+    if (documentPreviewClose) {
+      documentPreviewClose.addEventListener('click', hideDocumentPreview);
+    }
+    
+    if (documentPreviewModal) {
+      // Close modal when clicking outside the preview
+      documentPreviewModal.addEventListener('click', function(e) {
+        if (e.target === documentPreviewModal) {
+          hideDocumentPreview();
+        }
+      });
+      
+      // Close modal on Escape key
+      document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && documentPreviewModal.classList.contains('show')) {
+          hideDocumentPreview();
+        }
+      });
+    }
+    
+    // Restore current folder from localStorage before initial load
+    const savedFolder = localStorage.getItem('currentFolder');
+    if (savedFolder) {
+      currentFolder = savedFolder;
+      // Rebuild folder stack from saved folder path
+      const pathParts = savedFolder.split('/').filter(p => p);
+      folderStack = [];
+      let currentPath = '';
+      pathParts.forEach(part => {
+        currentPath = currentPath ? `${currentPath}/${part}` : part;
+        folderStack.push(currentPath);
       });
     }
     
