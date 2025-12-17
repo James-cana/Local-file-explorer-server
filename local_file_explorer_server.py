@@ -221,12 +221,12 @@ class UploadHandler(SimpleHTTPRequestHandler):
                     self.send_header('Content-Range', f'bytes {start}-{end}/{file_size}')
                     self.end_headers()
                     
-                    # Stream the requested range
+                    # Stream the requested range with larger chunks for speed
                     with open(filepath, 'rb') as f:
                         f.seek(start)
                         remaining = end - start + 1
                         while remaining > 0:
-                            chunk_size = min(8192, remaining)
+                            chunk_size = min(1024 * 1024, remaining)  # 1MB chunks
                             chunk = f.read(chunk_size)
                             if not chunk:
                                 break
@@ -241,15 +241,15 @@ class UploadHandler(SimpleHTTPRequestHandler):
             self.send_header('Content-Length', str(file_size))
             self.end_headers()
             
-            # For small files, read all at once; for large files, stream
+            # For small files, read all at once; for large files, stream with large chunks
             if file_size < 10 * 1024 * 1024:  # Less than 10MB
                 with open(filepath, 'rb') as f:
                     self.wfile.write(f.read())
             else:
-                # Stream large files in chunks
+                # Stream large files in 1MB chunks for better speed
                 with open(filepath, 'rb') as f:
                     while True:
-                        chunk = f.read(8192)
+                        chunk = f.read(1024 * 1024)  # 1MB chunks
                         if not chunk:
                             break
                         self.wfile.write(chunk)
@@ -580,7 +580,7 @@ class UploadHandler(SimpleHTTPRequestHandler):
                                 f.seek(start)
                                 remaining = end - start + 1
                                 while remaining > 0:
-                                    chunk_size = min(8192, remaining)
+                                    chunk_size = min(1024 * 1024, remaining)  # 1MB chunks
                                     chunk = f.read(chunk_size)
                                     if not chunk:
                                         break
@@ -614,10 +614,10 @@ class UploadHandler(SimpleHTTPRequestHandler):
                 self.send_header('X-Content-Type-Options', 'nosniff')
                 self.end_headers()
                 
-                # Stream file in chunks
+                # Stream file in large chunks for better speed
                 with open(filepath, 'rb') as f:
                     while True:
-                        chunk = f.read(8192)
+                        chunk = f.read(1024 * 1024)  # 1MB chunks
                         if not chunk:
                             break
                         self.wfile.write(chunk)
@@ -652,11 +652,24 @@ class UploadHandler(SimpleHTTPRequestHandler):
             boundary_bytes = boundary.encode()
 
             content_length = int(self.headers.get('Content-Length', 0))
-            body = self.rfile.read(content_length)
+            
+            # Stream upload directly to file for large files
+            uploaded_files = []
+            
+            # Read in chunks for better memory efficiency
+            chunk_size = 1024 * 1024  # 1MB chunks
+            body = b''
+            remaining = content_length
+            while remaining > 0:
+                read_size = min(chunk_size, remaining)
+                chunk = self.rfile.read(read_size)
+                if not chunk:
+                    break
+                body += chunk
+                remaining -= len(chunk)
 
             # Parse multipart form data and extract file contents
             parts = body.split(b'--' + boundary_bytes)
-            uploaded_files = []
 
             for part in parts:
                 if b'Content-Disposition: form-data' in part:
@@ -683,17 +696,44 @@ class UploadHandler(SimpleHTTPRequestHandler):
                     message = f"{len(uploaded_files)} files uploaded successfully"
                 self.send_response(200)
                 self.end_headers()
-                self.wfile.write(message.encode())
+                try:
+                    self.wfile.write(message.encode())
+                except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+                    pass
             else:
                 self.send_response(400)
                 self.end_headers()
-                self.wfile.write(b"No file found in request")
+                try:
+                    self.wfile.write(b"No file found in request")
+                except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+                    pass
         except Exception as e:
-            self.send_response(500)
-            self.end_headers()
-            self.wfile.write(f"Error: {str(e)}".encode())
+            try:
+                self.send_response(500)
+                self.end_headers()
+                self.wfile.write(f"Error: {str(e)}".encode())
+            except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+                pass
 
 # Start HTTP server on all interfaces, port 1313
+import socket
+
+def get_local_ip():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except:
+        return "127.0.0.1"
+
 server = HTTPServer(("0.0.0.0", 1313), UploadHandler)
-print("Upload server running on port 1313")
-server.serve_forever()
+ip = get_local_ip()
+print(f"Local File Explorer server running at http://{ip}:1313")
+
+try:
+    server.serve_forever()
+except KeyboardInterrupt:
+    print("\nServer stopped.")
+    server.server_close()

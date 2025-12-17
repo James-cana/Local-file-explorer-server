@@ -1469,16 +1469,16 @@ const TransferManager = {
           
           <div class="transfer-actions" id="transferActions">
             <button class="transfer-btn transfer-btn-pause" id="transferPauseBtn">
-              <span>⏸</span> Pause
+              Pause
             </button>
             <button class="transfer-btn transfer-btn-resume" id="transferResumeBtn" style="display: none;">
-              <span>▶</span> Resume
+              Resume
             </button>
             <button class="transfer-btn transfer-btn-cancel" id="transferCancelBtn">
-              <span>✕</span> Cancel
+              Cancel
             </button>
             <button class="transfer-btn transfer-btn-retry" id="transferRetryBtn" style="display: none;">
-              <span>↻</span> Retry
+              Retry
             </button>
             <button class="transfer-btn transfer-btn-done" id="transferDoneBtn" style="display: none;">
               Done
