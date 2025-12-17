@@ -8,6 +8,12 @@ let filesToUpload = []; // Array to store files selected for upload
 let currentFolder = null; // Track the currently selected main folder
 let folderStack = []; // Track navigation history for breadcrumbs
 
+// Transfer progress state
+let activeTransfer = null;
+let transferQueue = [];
+let isPaused = false;
+let isCancelled = false;
+
 // Function to update the page title with current directory
 function updatePageTitle() {
   const rootDir = window.SERVER_ROOT_DIR || '';
@@ -717,7 +723,7 @@ function displayFiles() {
           <span class="item-name">${escapedName}</span>
           <div style="display: flex; align-items: center; gap: 10px;">
             <span class="secondary-text">${formatSize(file.size || 0)}</span>
-            ${!isSelectMode ? `<a href="${downloadUrl}" class="download-btn" download="${escapedName}">Download</a>` : ''}
+            ${!isSelectMode ? `<a href="${downloadUrl}" class="download-btn" download="${escapedName}" onclick="event.preventDefault(); downloadFileWithProgress('${jsEscapedPath}', '${escapedName.replace(/'/g, "\\'")}');">Download</a>` : ''}
           </div>
         </li>
       `;
@@ -780,7 +786,7 @@ function displayFiles() {
           </span>
           <div style="display: flex; align-items: center; gap: 10px;">
             <span class="secondary-text">${formatSize(file.size || 0)}</span>
-            ${!isSelectMode ? `<a href="${downloadUrl}" class="download-btn" download="${escapedName}">Download</a>` : ''}
+            ${!isSelectMode ? `<a href="${downloadUrl}" class="download-btn" download="${escapedName}" onclick="event.preventDefault(); downloadFileWithProgress('${jsEscapedPath}', '${escapedName.replace(/'/g, "\\'")}');">Download</a>` : ''}
           </div>
         </li>
       `;
@@ -895,7 +901,7 @@ function displayFiles() {
         <span class="item-name">${escapedName}</span>
         <div style="display: flex; align-items: center; gap: 10px;">
           <span class="secondary-text">${formatSize(file.size || 0)}</span>
-          ${!isSelectMode ? `<a href="${downloadUrl}" class="download-btn" download="${escapedName}">Download</a>` : ''}
+          ${!isSelectMode ? `<a href="${downloadUrl}" class="download-btn" download="${escapedName}" onclick="event.preventDefault(); downloadFileWithProgress('${jsEscapedPath}', '${escapedName.replace(/'/g, "\\'")}');">Download</a>` : ''}
         </div>
       </li>
     `;
@@ -1248,23 +1254,107 @@ function downloadSelected() {
     return;
   }
   
-  selectedFiles.forEach(path => {
+  showDownloadConfirmModal();
+}
+
+function showDownloadConfirmModal() {
+  const pathsArray = Array.from(selectedFiles);
+  
+  // Build file list HTML
+  let totalSize = 0;
+  const fileListItems = pathsArray.map(path => {
+    const item = allFiles.find(f => f.path === path);
+    const data = selectedFilesData.get(path);
+    if (data && data.size) totalSize += data.size;
+    const icon = item?.type === 'folder' ? '📁' : '📄';
+    const name = item?.name || path.split('/').pop();
+    const size = data?.size ? formatSize(data.size) : '';
+    return `<div class="download-confirm-item">
+      <span class="download-confirm-icon">${icon}</span>
+      <span class="download-confirm-name">${name}</span>
+      <span class="download-confirm-size">${size}</span>
+    </div>`;
+  }).join('');
+
+  const modalHTML = `
+    <div id="downloadConfirmModal" class="modal show">
+      <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-header">
+          <h2 class="modal-title">Proceed to download?</h2>
+          <button class="modal-close-btn" onclick="closeDownloadConfirmModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p style="margin-bottom: 12px; color: var(--text-color);">
+            You are about to download <strong>${pathsArray.length}</strong> item${pathsArray.length > 1 ? 's' : ''}${totalSize > 0 ? ` (${formatSize(totalSize)} total)` : ''}:
+          </p>
+          <div class="download-confirm-list">
+            ${fileListItems}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="modal-cancel-btn" onclick="closeDownloadConfirmModal()">Cancel</button>
+          <button class="modal-upload-btn" onclick="confirmDownload()">Download</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
+  document.body.style.overflow = 'hidden';
+}
+
+function closeDownloadConfirmModal() {
+  const modal = document.getElementById('downloadConfirmModal');
+  if (modal) modal.remove();
+  document.body.style.overflow = '';
+}
+
+function confirmDownload() {
+  closeDownloadConfirmModal();
+  
+  const pathsArray = Array.from(selectedFiles);
+  
+  if (pathsArray.length === 1) {
+    // Single file - use progress download
+    const path = pathsArray[0];
     const item = allFiles.find(f => f.path === path);
     if (item) {
-      const downloadUrl = `/download/${encodeURIComponent(path)}`;
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      // For folders, the server will return a ZIP file, so add .zip extension
-      link.download = item.type === 'folder' ? `${item.name}.zip` : item.name;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      const fileName = item.type === 'folder' ? `${item.name}.zip` : item.name;
+      downloadFileWithProgress(path, fileName);
     }
-  });
+  } else {
+    // Multiple files - download sequentially with progress
+    downloadMultipleFiles(pathsArray, 0);
+  }
   
   setTimeout(() => {
     exitSelectMode();
   }, 500);
+}
+
+function downloadMultipleFiles(paths, index) {
+  if (index >= paths.length) return;
+  
+  const path = paths[index];
+  const item = allFiles.find(f => f.path === path);
+  
+  if (item) {
+    const fileName = item.type === 'folder' ? `${item.name}.zip` : item.name;
+    
+    // For multiple files, use direct download to avoid modal spam
+    const downloadUrl = `/download/${encodeURIComponent(path)}`;
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    // Download next file after a short delay
+    setTimeout(() => {
+      downloadMultipleFiles(paths, index + 1);
+    }, 300);
+  }
 }
 
 function handleSort(sortField) {
@@ -1301,41 +1391,448 @@ function updateSortUI() {
   }
 }
 
+// Transfer Progress Manager
+const TransferManager = {
+  modal: null,
+  progressBar: null,
+  percentageText: null,
+  fileNameEl: null,
+  speedEl: null,
+  etaEl: null,
+  transferredEl: null,
+  totalEl: null,
+  statusMessage: null,
+  pauseBtn: null,
+  resumeBtn: null,
+  cancelBtn: null,
+  retryBtn: null,
+  doneBtn: null,
+  
+  // Transfer state
+  xhr: null,
+  startTime: 0,
+  lastLoaded: 0,
+  lastTime: 0,
+  speedSamples: [],
+  peakSpeed: 0,
+  
+  init() {
+    this.createModal();
+  },
+  
+  createModal() {
+    // Check if modal already exists
+    if (document.getElementById('transferProgressModal')) {
+      this.modal = document.getElementById('transferProgressModal');
+      this.bindElements();
+      return;
+    }
+    
+    const modalHtml = `
+      <div id="transferProgressModal" class="transfer-progress-modal">
+        <div class="transfer-progress-content">
+          <div class="transfer-progress-header">
+            <h3 class="transfer-progress-title">
+              <span class="transfer-progress-icon">📤</span>
+              <span id="transferTitle">Uploading...</span>
+            </h3>
+            <button class="transfer-progress-close" id="transferCloseBtn" title="Close">×</button>
+          </div>
+          
+          <div class="transfer-file-name" id="transferFileName">filename.ext</div>
+          
+          <div class="transfer-progress-bar-container">
+            <div class="transfer-progress-bar" id="transferProgressBar" style="width: 0%"></div>
+            <span class="transfer-progress-percentage" id="transferPercentage">0%</span>
+          </div>
+          
+          <div class="transfer-stats">
+            <div class="transfer-stat">
+              <div class="transfer-stat-label">Speed</div>
+              <div class="transfer-stat-value" id="transferSpeed">-- KB/s</div>
+            </div>
+            <div class="transfer-stat">
+              <div class="transfer-stat-label">Time Left</div>
+              <div class="transfer-stat-value" id="transferETA">Calculating...</div>
+            </div>
+            <div class="transfer-stat">
+              <div class="transfer-stat-label">Transferred</div>
+              <div class="transfer-stat-value" id="transferTransferred">0 B</div>
+            </div>
+            <div class="transfer-stat">
+              <div class="transfer-stat-label">Total Size</div>
+              <div class="transfer-stat-value" id="transferTotal">0 B</div>
+            </div>
+          </div>
+          
+          <div class="transfer-status-message info" id="transferStatusMessage" style="display: none;"></div>
+          
+          <div class="transfer-actions" id="transferActions">
+            <button class="transfer-btn transfer-btn-pause" id="transferPauseBtn">
+              <span>⏸</span> Pause
+            </button>
+            <button class="transfer-btn transfer-btn-resume" id="transferResumeBtn" style="display: none;">
+              <span>▶</span> Resume
+            </button>
+            <button class="transfer-btn transfer-btn-cancel" id="transferCancelBtn">
+              <span>✕</span> Cancel
+            </button>
+            <button class="transfer-btn transfer-btn-retry" id="transferRetryBtn" style="display: none;">
+              <span>↻</span> Retry
+            </button>
+            <button class="transfer-btn transfer-btn-done" id="transferDoneBtn" style="display: none;">
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    this.modal = document.getElementById('transferProgressModal');
+    this.bindElements();
+    this.bindEvents();
+  },
+  
+  bindElements() {
+    this.progressBar = document.getElementById('transferProgressBar');
+    this.percentageText = document.getElementById('transferPercentage');
+    this.fileNameEl = document.getElementById('transferFileName');
+    this.speedEl = document.getElementById('transferSpeed');
+    this.etaEl = document.getElementById('transferETA');
+    this.transferredEl = document.getElementById('transferTransferred');
+    this.totalEl = document.getElementById('transferTotal');
+    this.statusMessage = document.getElementById('transferStatusMessage');
+    this.pauseBtn = document.getElementById('transferPauseBtn');
+    this.resumeBtn = document.getElementById('transferResumeBtn');
+    this.cancelBtn = document.getElementById('transferCancelBtn');
+    this.retryBtn = document.getElementById('transferRetryBtn');
+    this.doneBtn = document.getElementById('transferDoneBtn');
+    this.titleEl = document.getElementById('transferTitle');
+    this.iconEl = document.querySelector('.transfer-progress-icon');
+    this.closeBtn = document.getElementById('transferCloseBtn');
+  },
+  
+  bindEvents() {
+    this.pauseBtn?.addEventListener('click', () => this.pause());
+    this.resumeBtn?.addEventListener('click', () => this.resume());
+    this.cancelBtn?.addEventListener('click', () => this.cancel());
+    this.retryBtn?.addEventListener('click', () => this.retry());
+    this.doneBtn?.addEventListener('click', () => this.close());
+    this.closeBtn?.addEventListener('click', () => this.close());
+  },
+  
+  show(type = 'upload', fileName = '', totalSize = 0) {
+    this.createModal();
+    this.reset();
+    
+    this.titleEl.textContent = type === 'upload' ? 'Uploading...' : 'Downloading...';
+    this.iconEl.textContent = type === 'upload' ? '' : '';
+    this.fileNameEl.textContent = fileName;
+    this.totalEl.textContent = formatSize(totalSize);
+    
+    this.modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    
+    this.startTime = Date.now();
+    this.lastTime = this.startTime;
+    this.lastLoaded = 0;
+    this.speedSamples = [];
+    this.peakSpeed = 0;
+  },
+  
+  reset() {
+    isPaused = false;
+    isCancelled = false;
+    
+    this.progressBar.style.width = '0%';
+    this.progressBar.classList.remove('paused', 'error');
+    this.percentageText.textContent = '0%';
+    this.speedEl.textContent = '-- KB/s';
+    this.etaEl.textContent = 'Calculating...';
+    this.transferredEl.textContent = '0 B';
+    
+    this.statusMessage.style.display = 'none';
+    this.pauseBtn.style.display = 'inline-flex';
+    this.resumeBtn.style.display = 'none';
+    this.cancelBtn.style.display = 'inline-flex';
+    this.retryBtn.style.display = 'none';
+    this.doneBtn.style.display = 'none';
+  },
+  
+  updateProgress(loaded, total) {
+    if (isCancelled) return;
+    
+    const percentage = Math.round((loaded / total) * 100);
+    this.progressBar.style.width = `${percentage}%`;
+    this.percentageText.textContent = `${percentage}%`;
+    this.transferredEl.textContent = formatSize(loaded);
+    
+    // Calculate speed
+    const now = Date.now();
+    const timeDiff = (now - this.lastTime) / 1000;
+    
+    if (timeDiff >= 0.5) { // Update every 500ms
+      const bytesPerSecond = (loaded - this.lastLoaded) / timeDiff;
+      this.speedSamples.push(bytesPerSecond);
+      
+      // Keep last 5 samples for averaging
+      if (this.speedSamples.length > 5) {
+        this.speedSamples.shift();
+      }
+      
+      const avgSpeed = this.speedSamples.reduce((a, b) => a + b, 0) / this.speedSamples.length;
+      
+      // Track peak speed
+      if (avgSpeed > this.peakSpeed) {
+        this.peakSpeed = avgSpeed;
+      }
+      
+      this.speedEl.textContent = this.formatSpeed(avgSpeed);
+      
+      // Calculate ETA
+      const remaining = total - loaded;
+      if (avgSpeed > 0) {
+        const etaSeconds = remaining / avgSpeed;
+        this.etaEl.textContent = this.formatTime(etaSeconds);
+      }
+      
+      this.lastLoaded = loaded;
+      this.lastTime = now;
+    }
+  },
+  
+  formatSpeed(bytesPerSecond) {
+    if (bytesPerSecond < 1024) {
+      return `${Math.round(bytesPerSecond)} B/s`;
+    } else if (bytesPerSecond < 1024 * 1024) {
+      return `${(bytesPerSecond / 1024).toFixed(1)} KB/s`;
+    } else {
+      return `${(bytesPerSecond / (1024 * 1024)).toFixed(2)} MB/s`;
+    }
+  },
+  
+  formatTime(seconds) {
+    if (seconds < 60) {
+      return `${Math.round(seconds)}s`;
+    } else if (seconds < 3600) {
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.round(seconds % 60);
+      return `${mins}m ${secs}s`;
+    } else {
+      const hours = Math.floor(seconds / 3600);
+      const mins = Math.floor((seconds % 3600) / 60);
+      return `${hours}h ${mins}m`;
+    }
+  },
+  
+  showStatus(message, type = 'info') {
+    this.statusMessage.textContent = message;
+    this.statusMessage.className = `transfer-status-message ${type}`;
+    this.statusMessage.style.display = 'block';
+  },
+  
+  pause() {
+    if (this.xhr && !isPaused) {
+      isPaused = true;
+      this.progressBar.classList.add('paused');
+      this.pauseBtn.style.display = 'none';
+      this.resumeBtn.style.display = 'inline-flex';
+      this.showStatus('Transfer paused', 'warning');
+      // Note: XHR doesn't support true pause, we show paused state
+      // For true pause/resume, you'd need chunked uploads with server support
+    }
+  },
+  
+  resume() {
+    if (isPaused) {
+      isPaused = false;
+      this.progressBar.classList.remove('paused');
+      this.pauseBtn.style.display = 'inline-flex';
+      this.resumeBtn.style.display = 'none';
+      this.statusMessage.style.display = 'none';
+    }
+  },
+  
+  cancel() {
+    isCancelled = true;
+    if (this.xhr) {
+      this.xhr.abort();
+    }
+    this.progressBar.classList.add('error');
+    this.showStatus('Transfer cancelled', 'error');
+    this.pauseBtn.style.display = 'none';
+    this.resumeBtn.style.display = 'none';
+    this.cancelBtn.style.display = 'none';
+    this.retryBtn.style.display = 'inline-flex';
+    this.doneBtn.style.display = 'inline-flex';
+  },
+  
+  complete(success = true, message = '') {
+    if (success) {
+      this.progressBar.style.width = '100%';
+      this.percentageText.textContent = '100%';
+      this.showStatus(message || 'Transfer complete!', 'success');
+      this.titleEl.textContent = 'Complete!';
+    } else {
+      this.progressBar.classList.add('error');
+      this.showStatus(message || 'Transfer failed', 'error');
+      this.titleEl.textContent = 'Failed';
+    }
+    
+    this.pauseBtn.style.display = 'none';
+    this.resumeBtn.style.display = 'none';
+    this.cancelBtn.style.display = 'none';
+    this.retryBtn.style.display = success ? 'none' : 'inline-flex';
+    this.doneBtn.style.display = 'inline-flex';
+    
+    // Show peak speed on completion
+    this.speedEl.textContent = success && this.peakSpeed > 0 
+      ? this.formatSpeed(this.peakSpeed) 
+      : '--';
+    this.etaEl.textContent = success ? 'Done' : '--';
+  },
+  
+  retry() {
+    if (activeTransfer) {
+      this.reset();
+      if (activeTransfer.type === 'upload') {
+        handleUploadWithProgress(activeTransfer.files);
+      } else {
+        downloadFileWithProgress(activeTransfer.path, activeTransfer.name);
+      }
+    }
+  },
+  
+  close() {
+    this.modal.classList.remove('show');
+    document.body.style.overflow = '';
+    activeTransfer = null;
+    if (this.xhr) {
+      this.xhr.abort();
+      this.xhr = null;
+    }
+  }
+};
+
 function handleUpload() {
   if (filesToUpload.length === 0) {
     return;
   }
   
-  const statusDiv = document.getElementById('uploadStatus');
-  statusDiv.className = 'upload-status info';
-  statusDiv.innerHTML = `<p>Uploading ${filesToUpload.length} file(s)...</p>`;
+  // Use the progress-enabled upload
+  handleUploadWithProgress(filesToUpload);
+}
+
+function handleUploadWithProgress(files) {
+  if (!files || files.length === 0) return;
   
-  const formData = new FormData();
-  for (let i = 0; i < filesToUpload.length; i++) {
-    formData.append('files', filesToUpload[i]);
+  // Calculate total size
+  let totalSize = 0;
+  for (let i = 0; i < files.length; i++) {
+    totalSize += files[i].size;
   }
   
-  fetch('/', {
-    method: 'POST',
-    body: formData
-  })
-    .then(response => response.text())
-    .then(data => {
-      statusDiv.className = 'upload-status success';
-      statusDiv.innerHTML = `<p>${data}</p>`;
+  const fileNames = files.length === 1 
+    ? files[0].name 
+    : `${files.length} files`;
+  
+  activeTransfer = { type: 'upload', files: files };
+  
+  TransferManager.init();
+  TransferManager.show('upload', fileNames, totalSize);
+  
+  const formData = new FormData();
+  for (let i = 0; i < files.length; i++) {
+    formData.append('files', files[i]);
+  }
+  
+  const xhr = new XMLHttpRequest();
+  TransferManager.xhr = xhr;
+  
+  xhr.upload.addEventListener('progress', (e) => {
+    if (e.lengthComputable && !isPaused) {
+      TransferManager.updateProgress(e.loaded, e.total);
+    }
+  });
+  
+  xhr.addEventListener('load', () => {
+    if (xhr.status >= 200 && xhr.status < 300) {
+      TransferManager.complete(true, `Successfully uploaded ${fileNames}`);
       filesToUpload = [];
       const fileInput = document.getElementById('fileInput');
-      fileInput.value = '';
+      if (fileInput) fileInput.value = '';
       loadFiles();
-      setTimeout(() => {
-        statusDiv.innerHTML = '';
-        statusDiv.className = '';
-      }, 3000);
-    })
-    .catch(error => {
-      statusDiv.className = 'upload-status error';
-      statusDiv.innerHTML = `<p>Upload failed: ${error.message}</p>`;
-    });
+    } else {
+      TransferManager.complete(false, `Upload failed: ${xhr.statusText}`);
+    }
+  });
+  
+  xhr.addEventListener('error', () => {
+    if (!isCancelled) {
+      TransferManager.complete(false, 'Network error occurred');
+    }
+  });
+  
+  xhr.addEventListener('abort', () => {
+    // Already handled in cancel()
+  });
+  
+  xhr.open('POST', '/');
+  xhr.send(formData);
+}
+
+function downloadFileWithProgress(filePath, fileName) {
+  activeTransfer = { type: 'download', path: filePath, name: fileName };
+  
+  TransferManager.init();
+  TransferManager.show('download', fileName, 0);
+  
+  const xhr = new XMLHttpRequest();
+  TransferManager.xhr = xhr;
+  
+  xhr.responseType = 'blob';
+  
+  xhr.addEventListener('progress', (e) => {
+    if (e.lengthComputable && !isPaused) {
+      if (TransferManager.totalEl.textContent === '0 B') {
+        TransferManager.totalEl.textContent = formatSize(e.total);
+      }
+      TransferManager.updateProgress(e.loaded, e.total);
+    }
+  });
+  
+  xhr.addEventListener('load', () => {
+    if (xhr.status >= 200 && xhr.status < 300) {
+      // Create download link
+      const blob = xhr.response;
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      
+      // Update total size from blob size
+      TransferManager.totalEl.textContent = formatSize(blob.size);
+      TransferManager.transferredEl.textContent = formatSize(blob.size);
+      
+      TransferManager.complete(true, `Downloaded ${fileName}`);
+    } else {
+      TransferManager.complete(false, `Download failed: ${xhr.statusText}`);
+    }
+  });
+  
+  xhr.addEventListener('error', () => {
+    if (!isCancelled) {
+      TransferManager.complete(false, 'Network error occurred');
+    }
+  });
+  
+  xhr.open('GET', `/download/${encodeURIComponent(filePath)}`);
+  xhr.send();
 }
 
 // Theme toggle functionality

@@ -786,6 +786,47 @@
     cursor: not-allowed;
     opacity: 0.6;
   }
+
+  /* Download Confirm Modal */
+  .download-confirm-list {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: var(--file-list-bg);
+  }
+
+  .download-confirm-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .download-confirm-item:last-child {
+    border-bottom: none;
+  }
+
+  .download-confirm-icon {
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+
+  .download-confirm-name {
+    flex: 1;
+    color: var(--text-color);
+    font-size: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .download-confirm-size {
+    color: var(--text-secondary);
+    font-size: 13px;
+    flex-shrink: 0;
+  }
   
   /* Mobile Responsive Styles */
   @media screen and (max-width: 768px) {
@@ -2069,5 +2110,426 @@
   
   .footer-link-text {
     font-size: 10px;
+  }
+}
+
+/* Transfer Progress Modal Styles */
+.transfer-progress-modal {
+  display: none;
+  position: fixed;
+  z-index: 4000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  background-color: var(--modal-overlay);
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+}
+
+.transfer-progress-modal.show {
+  display: flex;
+}
+
+.transfer-progress-content {
+  background-color: var(--modal-bg);
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  padding: 24px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.transfer-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.transfer-progress-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-color);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.transfer-progress-icon {
+  font-size: 24px;
+}
+
+.transfer-progress-close {
+  background: transparent;
+  border: none;
+  font-size: 24px;
+  color: var(--text-color);
+  cursor: pointer;
+  opacity: 0.6;
+  padding: 4px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: opacity 0.2s ease;
+}
+
+.transfer-progress-close:hover {
+  opacity: 1;
+}
+
+.transfer-file-name {
+  font-size: 14px;
+  color: var(--text-color);
+  margin-bottom: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 10px 12px;
+  background-color: var(--input-bg);
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+}
+
+.transfer-progress-bar-container {
+  width: 100%;
+  height: 24px;
+  background-color: var(--input-bg);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 16px;
+  position: relative;
+  border: 1px solid var(--border-color);
+}
+
+.transfer-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #4CAF50, #66BB6A);
+  border-radius: 12px;
+  transition: width 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.transfer-progress-bar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  animation: progressShine 1.5s infinite;
+}
+
+@keyframes progressShine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.transfer-progress-bar.paused {
+  background: linear-gradient(90deg, #FFC107, #FFD54F);
+}
+
+.transfer-progress-bar.paused::after {
+  animation: none;
+}
+
+.transfer-progress-bar.error {
+  background: linear-gradient(90deg, #f44336, #E57373);
+}
+
+.transfer-progress-bar.error::after {
+  animation: none;
+}
+
+.transfer-progress-percentage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-color);
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  z-index: 1;
+}
+
+.transfer-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.transfer-stat {
+  background-color: var(--input-bg);
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+}
+
+.transfer-stat-label {
+  font-size: 11px;
+  color: var(--text-color);
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.transfer-stat-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.transfer-status-message {
+  font-size: 13px;
+  color: var(--text-color);
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.transfer-status-message.info {
+  background-color: #e3f2fd;
+  color: #1565c0;
+}
+
+.transfer-status-message.success {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.transfer-status-message.error {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+.transfer-status-message.warning {
+  background-color: #fff3e0;
+  color: #e65100;
+}
+
+body.dark-mode .transfer-status-message.info {
+  background-color: rgba(33, 150, 243, 0.2);
+  color: #64b5f6;
+}
+
+body.dark-mode .transfer-status-message.success {
+  background-color: rgba(76, 175, 80, 0.2);
+  color: #81c784;
+}
+
+body.dark-mode .transfer-status-message.error {
+  background-color: rgba(244, 67, 54, 0.2);
+  color: #e57373;
+}
+
+body.dark-mode .transfer-status-message.warning {
+  background-color: rgba(255, 152, 0, 0.2);
+  color: #ffb74d;
+}
+
+.transfer-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.transfer-btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.transfer-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.transfer-btn-pause {
+  background-color: #FFC107;
+  color: #333;
+}
+
+.transfer-btn-pause:hover:not(:disabled) {
+  background-color: #FFB300;
+}
+
+.transfer-btn-resume {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.transfer-btn-resume:hover:not(:disabled) {
+  background-color: #43A047;
+}
+
+.transfer-btn-cancel {
+  background-color: #f44336;
+  color: white;
+}
+
+.transfer-btn-cancel:hover:not(:disabled) {
+  background-color: #E53935;
+}
+
+.transfer-btn-retry {
+  background-color: #2196F3;
+  color: white;
+}
+
+.transfer-btn-retry:hover:not(:disabled) {
+  background-color: #1E88E5;
+}
+
+.transfer-btn-done {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.transfer-btn-done:hover:not(:disabled) {
+  background-color: #43A047;
+}
+
+/* Multi-file transfer list */
+.transfer-queue {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.transfer-queue-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.transfer-queue-item:last-child {
+  border-bottom: none;
+}
+
+.transfer-queue-item-name {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.transfer-queue-item-status {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.transfer-queue-item-status.pending {
+  background-color: var(--input-bg);
+  color: var(--text-color);
+  opacity: 0.7;
+}
+
+.transfer-queue-item-status.active {
+  background-color: #e3f2fd;
+  color: #1565c0;
+}
+
+.transfer-queue-item-status.completed {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
+.transfer-queue-item-status.error {
+  background-color: #ffebee;
+  color: #c62828;
+}
+
+body.dark-mode .transfer-queue-item-status.active {
+  background-color: rgba(33, 150, 243, 0.2);
+  color: #64b5f6;
+}
+
+body.dark-mode .transfer-queue-item-status.completed {
+  background-color: rgba(76, 175, 80, 0.2);
+  color: #81c784;
+}
+
+body.dark-mode .transfer-queue-item-status.error {
+  background-color: rgba(244, 67, 54, 0.2);
+  color: #e57373;
+}
+
+/* Mobile Responsive for Transfer Progress */
+@media screen and (max-width: 768px) {
+  .transfer-progress-content {
+    width: 95%;
+    padding: 20px;
+  }
+  
+  .transfer-stats {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  
+  .transfer-stat {
+    padding: 10px;
+  }
+  
+  .transfer-stat-value {
+    font-size: 14px;
+  }
+  
+  .transfer-actions {
+    flex-wrap: wrap;
+  }
+  
+  .transfer-btn {
+    flex: 1;
+    min-width: 100px;
+    justify-content: center;
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .transfer-progress-content {
+    padding: 16px;
+  }
+  
+  .transfer-progress-title {
+    font-size: 16px;
+  }
+  
+  .transfer-stats {
+    grid-template-columns: 1fr;
+  }
+  
+  .transfer-actions {
+    flex-direction: column;
+  }
+  
+  .transfer-btn {
+    width: 100%;
   }
 }
