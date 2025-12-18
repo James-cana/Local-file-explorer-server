@@ -78,6 +78,9 @@ function setupHapticFeedbackForDynamicElements() {
   // Attach to download links
   document.querySelectorAll('.download-btn:not([data-haptic-attached="true"])').forEach(attachHapticFeedback);
   
+  // Attach to footer links
+  document.querySelectorAll('.footer-link:not([data-haptic-attached="true"])').forEach(attachHapticFeedback);
+
   // Attach to sort options
   document.querySelectorAll('.sort-option:not([data-haptic-attached="true"])').forEach(attachHapticFeedback);
   
@@ -1081,7 +1084,8 @@ function updateDownloadActions() {
         <button onclick="exitSelectMode()" class="cancel-btn">Cancel</button>
       </div>
     `;
-    fileListContainer.appendChild(actionsDiv);
+    // Put the actions bar above the file list so it can stick to the top while scrolling
+    fileListContainer.insertBefore(actionsDiv, fileListContainer.firstChild);
     downloadActions = actionsDiv;
   }
   
@@ -1114,8 +1118,10 @@ function updateDownloadActions() {
   // Only show the panel when in select mode
   if (isSelectMode) {
     downloadActions.classList.add('show');
+    downloadActions.classList.add('sticky');
   } else {
     downloadActions.classList.remove('show');
+    downloadActions.classList.remove('sticky');
   }
   
   // Setup haptic feedback for download action buttons
@@ -1301,6 +1307,9 @@ function showDownloadConfirmModal() {
 
   document.body.insertAdjacentHTML('beforeend', modalHTML);
   document.body.style.overflow = 'hidden';
+
+  // Ensure haptic feedback is attached to newly injected modal buttons
+  setupHapticFeedbackForDynamicElements();
 }
 
 function closeDownloadConfirmModal() {

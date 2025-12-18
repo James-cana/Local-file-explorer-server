@@ -364,7 +364,6 @@
   
   .file-item.selected, .folder-item.selected {
     background-color: var(--file-item-selected);
-    transition: background-color 0.3s ease;
   }
   
   .folder-toggle {
@@ -488,22 +487,29 @@
     border: 1px solid #bee5eb;
   }
   
-  .download-actions {
-    display: none;
-    margin: 20px;
-    padding: 15px;
-    background-color: var(--download-actions-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 15px;
-  }
-  
-  .download-actions.show {
-    display: flex;
-  }
+.download-actions {
+  display: none;
+  margin: 20px;
+  padding: 15px;
+  background-color: var(--download-actions-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.download-actions.show {
+  display: flex;
+}
+
+/* Sticky action bar when selecting downloads */
+.download-actions.sticky {
+  position: sticky;
+  top: 0;
+  z-index: 1500;
+}
   
   .download-actions-main {
     display: flex;
