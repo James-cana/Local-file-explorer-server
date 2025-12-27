@@ -1084,8 +1084,8 @@ function updateDownloadActions() {
         <button onclick="exitSelectMode()" class="cancel-btn">Cancel</button>
       </div>
     `;
-    // Put the actions bar above the file list so it can stick to the top while scrolling
-    fileListContainer.insertBefore(actionsDiv, fileListContainer.firstChild);
+    // Put the actions bar at the bottom so it can stick to the bottom while scrolling
+    fileListContainer.appendChild(actionsDiv);
     downloadActions = actionsDiv;
   }
   
@@ -1880,11 +1880,50 @@ function initThemeToggle() {
   });
 }
 
+// Update footer links for mobile apps
+function updateFooterLinksForMobile() {
+  if (!isMobileDevice()) return;
+  
+  // Facebook link - use app deep link on mobile
+  const facebookLink = document.querySelector('.footer-link[aria-label="Facebook"]');
+  if (facebookLink) {
+    // Store original web URL as data attribute for potential fallback
+    const webUrl = facebookLink.getAttribute('href');
+    facebookLink.setAttribute('data-web-url', webUrl);
+    // Use fb:// scheme for Facebook app (works on both iOS and Android)
+    // Try profile first, as it's likely a personal profile
+    facebookLink.href = 'fb://profile/jamesakalam';
+  }
+  
+  // Twitter/X link - use app deep link on mobile
+  const twitterLink = document.querySelector('.footer-link[aria-label="X (Twitter)"]');
+  if (twitterLink) {
+    // Store original web URL as data attribute for potential fallback
+    const webUrl = twitterLink.getAttribute('href');
+    twitterLink.setAttribute('data-web-url', webUrl);
+    // Use twitter:// scheme for Twitter/X app (works on both iOS and Android)
+    twitterLink.href = 'twitter://user?screen_name=jhamespaul06';
+  }
+  
+  // Instagram link - use app deep link on mobile
+  const instagramLink = document.querySelector('.footer-link[aria-label="Instagram"]');
+  if (instagramLink) {
+    // Store original web URL as data attribute for potential fallback
+    const webUrl = instagramLink.getAttribute('href');
+    instagramLink.setAttribute('data-web-url', webUrl);
+    // Use instagram:// scheme for Instagram app (works on both iOS and Android)
+    instagramLink.href = 'instagram://user?username=dyamessu';
+  }
+}
+
 // Initialize when DOM is ready
 function initializeApp() {
   try {
     // Initialize theme toggle
     initThemeToggle();
+    
+    // Update footer links for mobile apps
+    updateFooterLinksForMobile();
     
     // Sort dropdown
     const sortBtn = document.getElementById('sortBtn');
