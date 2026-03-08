@@ -1956,7 +1956,6 @@ function initializeApp() {
     const uploadBtn = document.getElementById('uploadBtn');
     const fileInput = document.getElementById('fileInput');
     const uploadModal = document.getElementById('uploadModal');
-    const chooseFileBtn = document.getElementById('chooseFileBtn');
     const modalUploadBtn = document.getElementById('modalUploadBtn');
     const modalCancelBtn = document.getElementById('modalCancelBtn');
     const modalCloseBtn = document.getElementById('modalCloseBtn');
@@ -1981,17 +1980,57 @@ function initializeApp() {
       modalCloseBtn.addEventListener('click', closeModal);
     }
     
-    if (chooseFileBtn && fileInput) {
-      chooseFileBtn.addEventListener('click', function() {
+    document.querySelectorAll('.file-source-option').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const source = this.getAttribute('data-source');
+        const accept = this.getAttribute('data-accept');
+        const capture = this.getAttribute('data-capture');
+        if (!fileInput) return;
+
+        if (source === 'files') {
+          // On Android, creating a fresh detached input with a specific
+          // non-media MIME type forces the system file manager (DocumentsUI)
+          // to open directly instead of showing an intent picker.
+          const tempInput = document.createElement('input');
+          tempInput.type = 'file';
+          tempInput.multiple = true;
+          // application/octet-stream tells Android this is a generic file request,
+          // which routes directly to the Files/DocumentsUI app.
+          tempInput.accept = 'application/octet-stream';
+          tempInput.style.display = 'none';
+          tempInput.addEventListener('change', function() {
+            const newFiles = Array.from(tempInput.files);
+            newFiles.forEach(file => {
+              const isDuplicate = filesToUpload.some(f => f.name === file.name && f.size === file.size);
+              if (!isDuplicate) filesToUpload.push(file);
+            });
+            updateFileList();
+            document.body.removeChild(tempInput);
+          });
+          document.body.appendChild(tempInput);
+          tempInput.click();
+          return;
+        }
+
+        // For camera, recorder, photos & videos — use the existing shared fileInput
+        fileInput.removeAttribute('capture');
+        if (accept && accept.trim().length > 0) {
+          fileInput.setAttribute('accept', accept);
+        } else {
+          fileInput.removeAttribute('accept');
+        }
+        if (capture) {
+          fileInput.setAttribute('capture', capture);
+        }
         fileInput.click();
       });
-      
+    });
+    
+    if (fileInput) {
       fileInput.addEventListener('change', function() {
-        // Add new files to the array (avoiding duplicates)
         const newFiles = Array.from(fileInput.files);
         newFiles.forEach(file => {
-          // Check if file already exists (by name and size)
-          const exists = filesToUpload.some(existingFile => 
+          const exists = filesToUpload.some(existingFile =>
             existingFile.name === file.name && existingFile.size === file.size
           );
           if (!exists) {
@@ -1999,8 +2038,8 @@ function initializeApp() {
           }
         });
         updateFileList();
-        // Reset file input so same file can be selected again if needed
         fileInput.value = '';
+        fileInput.removeAttribute('capture');
       });
     }
     
